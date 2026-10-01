@@ -17,6 +17,9 @@ import java.util.Date;
 /**
  * 停供/限供申请签核单对象 t_zw_stop_bill
  *
+ * <p>单上不设任何"已落印数"格子：本口过没过、落了几枚名，全由服务层顺着
+ * {@link TZwStopSign} 签核台账一笔笔点算回来，屏上摆的与库里数的同出一次计数。
+ *
  * @author fuce
  * @date 2026-09-12
  */
@@ -31,34 +34,54 @@ public class TZwStopBill implements Serializable {
     @ApiModelProperty(value = "主键")
     private Long id;
 
-    /** 停供/限供申请签核单号 */
+    /** 停供/限供申请签核单号（点位代号-年-当年序） */
     @TableField("bill_no")
     @ApiModelProperty(value = "停供/限供申请签核单号")
     private String billNo;
 
-    /** 当前所在道 0..2（业务提/水质核/调度准） */
+    /** 水源点代号（只认代号不认名字） */
+    @TableField("site_no")
+    @ApiModelProperty(value = "水源点代号")
+    private String siteNo;
+
+    /** 申请所属自然年（当年序按此归年） */
+    @TableField("bill_year")
+    @ApiModelProperty(value = "申请所属自然年")
+    private Integer billYear;
+
+    /** 同一水源点当年第几份申请（第二份当场单独点名） */
+    @TableField("year_seq")
+    @ApiModelProperty(value = "同一水源点当年第几份申请")
+    private Integer yearSeq;
+
+    /** 停水事由代号 DEPLETED水源枯竭/OVER_LIMIT指标连续超标/REPAIR检修 */
+    @TableField("reason")
+    @ApiModelProperty(value = "停水事由代号")
+    private String reason;
+
+    /** 停水后的替代供水方案 */
+    @TableField("alt_plan")
+    @ApiModelProperty(value = "停水后的替代供水方案")
+    private String altPlan;
+
+    /** 用户公告文案（按事由从名录带出，不经人手抄录） */
+    @TableField("notice_text")
+    @ApiModelProperty(value = "用户公告文案（名录带出）")
+    private String noticeText;
+
+    /** 当前所在道 0业务提 1水质核 2调度评 3主管准 */
     @TableField("node_no")
-    @ApiModelProperty(value = "当前所在道 0..2（业务提/水质核/调度准）")
+    @ApiModelProperty(value = "当前所在道 0业务提 1水质核 2调度评 3主管准")
     private Integer nodeNo;
 
-    /** 同口并印办法 0任一人 1两名点齐 */
-    @TableField("sign_mode")
-    @ApiModelProperty(value = "同口并印办法 0任一人 1两名点齐")
-    private Integer signMode;
+    /** 签核轮次；主管打回一轮旧签核整轮作废，补签另起一轮 */
+    @TableField("round_no")
+    @ApiModelProperty(value = "签核轮次")
+    private Integer roundNo;
 
-    /** 本口应落印数 */
-    @TableField("need_count")
-    @ApiModelProperty(value = "本口应落印数")
-    private Integer needCount;
-
-    /** 本口已落印数 */
-    @TableField("sign_count")
-    @ApiModelProperty(value = "本口已落印数")
-    private Integer signCount;
-
-    /** 报批情形 0在核 1已核讫 2已打回 */
+    /** 报批情形 0在核 1已核讫 2已终止（不同意/撤回） */
     @TableField("status")
-    @ApiModelProperty(value = "报批情形 0在核 1已核讫 2已打回")
+    @ApiModelProperty(value = "报批情形 0在核 1已核讫 2已终止")
     private Integer status;
 
     /** 删除标记 0正常 1删除 */
@@ -109,6 +132,54 @@ public class TZwStopBill implements Serializable {
         this.billNo = billNo;
     }
 
+    public String getSiteNo() {
+        return siteNo;
+    }
+
+    public void setSiteNo(String siteNo) {
+        this.siteNo = siteNo;
+    }
+
+    public Integer getBillYear() {
+        return billYear;
+    }
+
+    public void setBillYear(Integer billYear) {
+        this.billYear = billYear;
+    }
+
+    public Integer getYearSeq() {
+        return yearSeq;
+    }
+
+    public void setYearSeq(Integer yearSeq) {
+        this.yearSeq = yearSeq;
+    }
+
+    public String getReason() {
+        return reason;
+    }
+
+    public void setReason(String reason) {
+        this.reason = reason;
+    }
+
+    public String getAltPlan() {
+        return altPlan;
+    }
+
+    public void setAltPlan(String altPlan) {
+        this.altPlan = altPlan;
+    }
+
+    public String getNoticeText() {
+        return noticeText;
+    }
+
+    public void setNoticeText(String noticeText) {
+        this.noticeText = noticeText;
+    }
+
     public Integer getNodeNo() {
         return nodeNo;
     }
@@ -117,28 +188,12 @@ public class TZwStopBill implements Serializable {
         this.nodeNo = nodeNo;
     }
 
-    public Integer getSignMode() {
-        return signMode;
+    public Integer getRoundNo() {
+        return roundNo;
     }
 
-    public void setSignMode(Integer signMode) {
-        this.signMode = signMode;
-    }
-
-    public Integer getNeedCount() {
-        return needCount;
-    }
-
-    public void setNeedCount(Integer needCount) {
-        this.needCount = needCount;
-    }
-
-    public Integer getSignCount() {
-        return signCount;
-    }
-
-    public void setSignCount(Integer signCount) {
-        this.signCount = signCount;
+    public void setRoundNo(Integer roundNo) {
+        this.roundNo = roundNo;
     }
 
     public Integer getStatus() {

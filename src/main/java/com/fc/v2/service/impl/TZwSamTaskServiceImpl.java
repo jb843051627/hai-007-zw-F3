@@ -107,6 +107,7 @@ public class TZwSamTaskServiceImpl implements ITZwSamTaskService {
      * 按检测计划周期幂等生成该浮出的事项条。
      * 从首个采样日起逐周期顺排，凡在 at 已浮出的周期各落一条；同计划同点位同约定日已存在则不重复落。
      * 事项编号、点位代号、约定日期全部从底档带入，不经人手抄录。
+     * 底档已退役（停供批准回写）的点位：新派单一律不再生成；旧事项条/旧采样记录原样可查。
      */
     @Override
     public int generate(Date at) {
@@ -115,11 +116,30 @@ public class TZwSamTaskServiceImpl implements ITZwSamTaskService {
                 .eq("del_flag", 0)
                 .isNotNull("first_due")
                 .gt("period_days", 0));
+        Set<String> retiredSites = loadAllRetiredSites();
         int generated = 0;
         for (TZwSamPlan plan : plans) {
+            // 退役点不开新账：连待派条都不落，旧记录留在台账里可查、不得追加
+            if (plan.getSiteNo() != null && retiredSites.contains(plan.getSiteNo())) {
+                continue;
+            }
             generated += generatePlan(plan, at);
         }
         return generated;
+    }
+
+    /** 全部已退役点位代号（批准退役的水源点不再开新采样账） */
+    private Set<String> loadAllRetiredSites() {
+        List<TZwSource> sources = this.zwSourceMapper.selectList(new QueryWrapper<TZwSource>()
+                .eq("status", SOURCE_RETIRED)
+                .eq("del_flag", 0));
+        Set<String> retired = new HashSet<String>();
+        for (TZwSource s : sources) {
+            if (s.getSiteNo() != null) {
+                retired.add(s.getSiteNo());
+            }
+        }
+        return retired;
     }
 
     private int generatePlan(TZwSamPlan plan, Date at) {
