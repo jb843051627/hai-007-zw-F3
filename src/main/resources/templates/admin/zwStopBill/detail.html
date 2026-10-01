@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.pollix.at/thymeleaf/shiro">
+<head>
+    <th:block th:include="include :: header('停供申请签核轨迹')"/>
+</head>
+<body class="pear-container">
+<div class="layui-card">
+    <div class="layui-card-header">
+        申请单 <b th:text="${bill?.billNo}"></b>
+        <span style="margin-left:12px">水源点代号：<b th:text="${bill?.siteNo}"></b></span>
+    </div>
+    <div class="layui-card-body">
+        <table class="layui-table" style="margin-top:0">
+            <tr>
+                <td class="pear-form-content" width="120">停水事由</td>
+                <td id="d-reason" width="200"></td>
+                <td class="pear-form-content" width="120">当年序</td>
+                <td id="d-yearseq" width="120"></td>
+            </tr>
+            <tr>
+                <td class="pear-form-content">替代供水方案</td>
+                <td colspan="3" th:text="${bill?.altPlan}"></td>
+            </tr>
+            <tr>
+                <td class="pear-form-content">当前结论</td>
+                <td colspan="3"><span id="d-status"></span><span id="d-node" style="margin-left:10px"></span></td>
+            </tr>
+            <tr id="d-notice-row" style="display:none">
+                <td class="pear-form-content">对用户公告<br><small>（名录带出）</small></td>
+                <td colspan="3" id="d-notice"></td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+<!-- 各关过没过、落名几枚：整页只渲染 /chain 回的一次计数，页面自己不数、也没有输入计数的格子 -->
+<div class="layui-card">
+    <div class="layui-card-header">三道关口（各关落名枚数由服务层顺着签核记录点算）</div>
+    <div class="layui-card-body">
+        <table class="layui-table" style="margin-top:0">
+            <thead>
+            <tr>
+                <th width="150">关口</th>
+                <th width="120">应落名</th>
+                <th width="120">已落名</th>
+                <th width="120">这关过没过</th>
+                <th>经办</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr><td>① 业务科提单</td><td id="n-need-0"></td><td id="n-signed-0"></td><td id="n-filled-0"></td><td id="n-actors-0"></td></tr>
+            <tr><td>② 水质科核实</td><td id="n-need-1"></td><td id="n-signed-1"></td><td id="n-filled-1"></td><td id="n-actors-1"></td></tr>
+            <tr><td>③ 调度评估（两口）</td><td id="n-need-2"></td><td id="n-signed-2"></td><td id="n-filled-2"></td><td id="n-actors-2"></td></tr>
+            <tr><td>④ 调度中心主管</td><td id="n-need-3"></td><td id="n-signed-3"></td><td id="n-filled-3"></td><td id="n-actors-3"></td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 本关动作区：按钮只是发动作，能不能落全由服务层裁；越关按钮发出去也是未受理 -->
+<div class="layui-card" id="action-card" style="display:none">
+    <div class="layui-card-header">本关经办</div>
+    <div class="layui-card-body" style="line-height:42px">
+        <button shiro:hasPermission="zw:zwStopBill:verify" class="pear-btn pear-btn-primary" id="btn-verify">水质科核实通过</button>
+        <button shiro:hasPermission="zw:zwStopBill:evaluate" class="pear-btn pear-btn-primary" id="btn-qty">水量调配评估通过</button>
+        <button shiro:hasPermission="zw:zwStopBill:evaluate" class="pear-btn pear-btn-primary" id="btn-net">管网影响评估通过</button>
+        <button shiro:hasPermission="zw:zwStopBill:approve" class="pear-btn pear-btn-success" id="btn-approve">主管批准（退役+带出公告）</button>
+        <button shiro:hasPermission="zw:zwStopBill:approve" class="pear-btn pear-btn-warming" id="btn-reject">主管认为理由不符打回</button>
+        <button shiro:hasPermission="zw:zwStopBill:verify" class="pear-btn pear-btn-danger" id="btn-verify-no">水质科不同意</button>
+        <button shiro:hasPermission="zw:zwStopBill:evaluate" class="pear-btn pear-btn-danger" id="btn-qty-no">水量调配不同意</button>
+        <button shiro:hasPermission="zw:zwStopBill:evaluate" class="pear-btn pear-btn-danger" id="btn-net-no">管网影响不同意</button>
+    </div>
+    <div class="layui-card-body" id="verify-reason-row" style="display:none">
+        <label>核实事由代号（只认代号，写错即不过）：</label>
+        <select id="confirmedReason" class="layui-input" style="display:inline-block;width:220px">
+            <option value="DEPLETION">DEPLETION 水源枯竭</option>
+            <option value="EXCEED">EXCEED 指标连续超标</option>
+            <option value="REPAIR">REPAIR 检修</option>
+        </select>
+    </div>
+</div>
+
+<div class="layui-card">
+    <div class="layui-card-header">逐笔签核轨迹（倒查从最后一道退回第一道；灰行为主管打回后作废轮次，与补签不摆在一起）</div>
+    <div class="layui-card-body">
+        <table class="layui-table" style="margin-top:0">
+            <thead>
+            <tr>
+                <th width="70">轮次</th>
+                <th width="130">关口</th>
+                <th width="140">角色</th>
+                <th width="130">落名人</th>
+                <th width="90">动作</th>
+                <th width="160">时刻</th>
+                <th>经办意见</th>
+                <th width="90">是否有效</th>
+            </tr>
+            </thead>
+            <tbody id="trail-body"></tbody>
+        </table>
+    </div>
+</div>
+
+<th:block th:include="include :: footer"/>
+<script th:inline="javascript">
+    let BILL_ID = [[${bill?.id}]];
+    let BILL_REASON = [[${bill?.stopReason}]];
+    let NOTICE_TEXT = [[${bill?.noticeText}]];
+</script>
+<script>
+    layui.use(['jquery', 'layer'], function () {
+        let $ = layui.jquery;
+        let layer = layui.layer;
+        let MODULE_PATH = rootPath + "/zwStopBill/";
+
+        let REASON_TEXT = {DEPLETION: '水源枯竭', EXCEED: '指标连续超标', REPAIR: '检修'};
+        let NODE_TEXT = ['业务科提单', '水质科核实', '调度评估', '主管批准'];
+        let ROLE_TEXT = {
+            APPLY: '业务科提单', WQ: '水质科核实',
+            DISP_QTY: '水量调配', DISP_NET: '管网影响', DISPATCH_HEAD: '调度主管'
+        };
+        let ACTION_TEXT = {0: '同意', 1: '不同意', 2: '撤回', 3: '主管打回'};
+
+        function esc(s) {
+            return $('<div>').text(s == null ? '' : s).html();
+        }
+
+        function post(action, data, done) {
+            $.ajax({
+                url: MODULE_PATH + action, type: 'post', data: data,
+                success: function (res) {
+                    if (res.code === 200) {
+                        layer.msg((res.data && res.data.message) || '已落账', {icon: 1});
+                        load();
+                    } else if (res.code === 202) {
+                        layer.alert((res.data && res.data.message) || '前置未齐，压在本关', {icon: 0});
+                    } else {
+                        layer.msg(res.msg || '操作未生效', {icon: 2});
+                    }
+                    if (done) done(res);
+                }
+            });
+        }
+
+        function opinionThen(title, fn) {
+            layer.prompt({title: title, formType: 2}, function (text, idx) {
+                fn(text);
+                layer.close(idx);
+            });
+        }
+
+        function render(view) {
+            $('#d-reason').text(REASON_TEXT[BILL_REASON] || BILL_REASON || '');
+            $('#d-yearseq').text('第 ' + view.yearSeq + ' 份' + (view.yearSeq >= 2 ? '（当年再次申请，已当场点名）' : ''));
+            let st = view.status === 1 ? '<span class="layui-badge layui-bg-green">已核讫（退役）</span>'
+                : view.status === 3 ? '<span class="layui-badge">已终止锁死</span>'
+                : '<span class="layui-badge layui-bg-orange">在核</span>';
+            $('#d-status').html(st);
+            $('#d-node').text('当前：' + NODE_TEXT[view.currentNode] + '（第 ' + view.roundNo + ' 轮）');
+            if (NOTICE_TEXT) {
+                $('#d-notice-row').show();
+                $('#d-notice').text(NOTICE_TEXT);
+            }
+
+            // 四个关口的数全部来自 view（服务层同一次计数），页面没有第二把尺
+            for (let n = 0; n <= 3; n++) {
+                $('#n-need-' + n).text(view.needCounts[n]);
+                $('#n-signed-' + n).text(view.signedCounts[n]);
+                $('#n-filled-' + n).html(view.filled[n]
+                    ? '<span class="layui-badge layui-bg-green">已满</span>'
+                    : '<span class="layui-badge layui-bg-gray">未满</span>');
+            }
+            // 各关落名账号从轨迹里取（轨迹与枚数同源）
+            let actors = {0: {}, 1: {}, 2: {}, 3: {}};
+            (view.trail || []).forEach(function (s) {
+                if (s.validFlag === 1 && s.action === 0 && s.roundNo === view.roundNo) {
+                    actors[s.nodeNo][s.actor] = (ROLE_TEXT[s.roleCode] || s.roleCode);
+                }
+            });
+            for (let n = 0; n <= 3; n++) {
+                let parts = [];
+                for (let a in actors[n]) { parts.push(esc(a) + '（' + esc(actors[n][a]) + '）'); }
+                $('#n-actors-' + n).html(parts.join('、') || '—');
+            }
+
+            // 轨迹：作废轮次整行置灰，作废与补签分行摆，不合并
+            let html = '';
+            (view.trail || []).forEach(function (s) {
+                let voided = s.validFlag === 0;
+                html += '<tr style="' + (voided ? 'color:#999;text-decoration:line-through' : '') + '">'
+                    + '<td>' + s.roundNo + '</td>'
+                    + '<td>' + (NODE_TEXT[s.nodeNo] || s.nodeNo) + '</td>'
+                    + '<td>' + esc(ROLE_TEXT[s.roleCode] || s.roleCode) + '</td>'
+                    + '<td>' + esc(s.actor) + '</td>'
+                    + '<td>' + esc(ACTION_TEXT[s.action] || s.action) + '</td>'
+                    + '<td>' + (s.createTime || '') + '</td>'
+                    + '<td>' + esc(s.opinion) + '</td>'
+                    + '<td>' + (voided ? '已作废' : '有效') + '</td>'
+                    + '</tr>';
+            });
+            $('#trail-body').html(html || '<tr><td colspan="8" style="text-align:center;color:#999">暂无签核记录</td></tr>');
+
+            // 动作按钮：只在在核时亮出对应关口；即便亮错，服务层也会按关口次序挡
+            let running = view.status === 0;
+            $('#action-card').toggle(running);
+            let node = view.currentNode;
+            $('#btn-verify,#btn-verify-no,#verify-reason-row').toggle(running && node === 1);
+            $('#btn-qty,#btn-net,#btn-qty-no,#btn-net-no').toggle(running && node === 2);
+            $('#btn-approve,#btn-reject').toggle(running && node === 3);
+            $('#confirmedReason').val(BILL_REASON);
+        }
+
+        function load() {
+            $.get(MODULE_PATH + 'chain', {id: BILL_ID}, function (res) {
+                if (res.code === 200) {
+                    render(res.data);
+                } else {
+                    layer.msg(res.msg || '结论取不到', {icon: 2});
+                }
+            });
+        }
+
+        $('#btn-verify').on('click', function () {
+            post('verify', {id: BILL_ID, confirmedReason: $('#confirmedReason').val(), agree: true, opinion: '核实通过'});
+        });
+        $('#btn-verify-no').on('click', function () {
+            opinionThen('水质科写明不同意的意见', function (t) {
+                post('verify', {id: BILL_ID, confirmedReason: $('#confirmedReason').val(), agree: false, opinion: t});
+            });
+        });
+        $('#btn-qty').on('click', function () {
+            opinionThen('水量调配评估意见', function (t) {
+                post('evaluate', {id: BILL_ID, roleCode: 'DISP_QTY', agree: true, opinion: t});
+            });
+        });
+        $('#btn-net').on('click', function () {
+            opinionThen('管网影响评估意见', function (t) {
+                post('evaluate', {id: BILL_ID, roleCode: 'DISP_NET', agree: true, opinion: t});
+            });
+        });
+        $('#btn-qty-no').on('click', function () {
+            opinionThen('水量调配写明不同意的评估意见', function (t) {
+                post('evaluate', {id: BILL_ID, roleCode: 'DISP_QTY', agree: false, opinion: t});
+            });
+        });
+        $('#btn-net-no').on('click', function () {
+            opinionThen('管网影响写明不同意的评估意见', function (t) {
+                post('evaluate', {id: BILL_ID, roleCode: 'DISP_NET', agree: false, opinion: t});
+            });
+        });
+        $('#btn-approve').on('click', function () {
+            post('approve', {id: BILL_ID, opinion: '主管批准'});
+        });
+        $('#btn-reject').on('click', function () {
+            opinionThen('主管打回：理由不符在何处', function (t) {
+                post('reject', {id: BILL_ID, opinion: t});
+            });
+        });
+
+        load();
+    });
+</script>
+</body>
+</html>

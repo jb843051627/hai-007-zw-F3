@@ -42,6 +42,11 @@ public class TZwImpRow implements Serializable {
     @ApiModelProperty(value = "原表行次")
     private Integer rowNo;
 
+    /** 采样水源点代号（水质科拿近月数据对照申请时只认代号） */
+    @TableField("site_no")
+    @ApiModelProperty(value = "采样水源点代号")
+    private String siteNo;
+
     /** 被校验出的数据项代号 */
     @TableField("item_code")
     @ApiModelProperty(value = "被校验出的数据项代号")
@@ -138,6 +143,14 @@ public class TZwImpRow implements Serializable {
 
     public void setRowNo(Integer rowNo) {
         this.rowNo = rowNo;
+    }
+
+    public String getSiteNo() {
+        return siteNo;
+    }
+
+    public void setSiteNo(String siteNo) {
+        this.siteNo = siteNo;
     }
 
     public String getItemCode() {

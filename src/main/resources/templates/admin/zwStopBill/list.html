@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.pollix.at/thymeleaf/shiro">
+<head>
+    <th:block th:include="include :: header('停供/限供申请签核台账')"/>
+</head>
+<body class="pear-container">
+<div class="layui-card">
+    <div class="layui-card-body">
+        <form class="layui-form" action="">
+            <div class="layui-form-item">
+                <label class="layui-form-label">签核单号</label>
+                <div class="layui-input-inline">
+                    <input type="text" name="billNo" placeholder="点位-年度-当年序" class="layui-input">
+                </div>
+                <label class="layui-form-label">水源点代号</label>
+                <div class="layui-input-inline">
+                    <input type="text" name="siteNo" placeholder="只认代号" class="layui-input">
+                </div>
+                <label class="layui-form-label">情形</label>
+                <div class="layui-input-inline">
+                    <select name="status" class="layui-input">
+                        <option value="">全部</option>
+                        <option value="0">在核</option>
+                        <option value="1">已核讫</option>
+                        <option value="3">已终止</option>
+                    </select>
+                </div>
+                <button class="pear-btn pear-btn-md pear-btn-primary" lay-submit lay-filter="stop-bill-query">
+                    <i class="layui-icon layui-icon-search"></i>
+                    查询
+                </button>
+                <button type="reset" class="pear-btn pear-btn-md">
+                    <i class="layui-icon layui-icon-refresh"></i>
+                    重置
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="layui-card">
+    <div class="layui-card-body">
+        <table id="stop-bill-table" lay-filter="stop-bill-table"></table>
+    </div>
+</div>
+</body>
+
+<script type="text/html" id="stop-bill-toolbar">
+    <button shiro:hasPermission="zw:zwStopBill:submit" class="pear-btn pear-btn-primary pear-btn-md" lay-event="submit">
+        <i class="layui-icon layui-icon-addition"></i>
+        业务科提单
+    </button>
+</script>
+
+<script type="text/html" id="stop-bill-bar">
+    <a class="pear-btn pear-btn-sm" lay-event="detail">签核轨迹</a>
+    {{#  if(d.status == 0){ }}
+    <button shiro:hasPermission="zw:zwStopBill:withdraw" class="pear-btn pear-btn-danger pear-btn-sm" lay-event="withdraw">
+        撤回
+    </button>
+    {{#  } }}
+</script>
+
+<script type="text/html" id="stop-bill-status">
+    {{#  if(d.status == 0){ }}<span class="layui-badge layui-bg-orange">在核</span>
+    {{#  } else if(d.status == 1){ }}<span class="layui-badge layui-bg-green">已核讫</span>
+    {{#  } else if(d.status == 3){ }}<span class="layui-badge">已终止</span>
+    {{#  } else if(d.status == 2){ }}<span class="layui-badge layui-bg-gray">老签法已打回</span>
+    {{#  } }}
+</script>
+
+<script type="text/html" id="stop-bill-node">
+    {{#  if(d.status == 1){ }}<span class="layui-badge layui-bg-green">已批准退役</span>
+    {{#  } else if(d.status == 3){ }}<span class="layui-badge">到此为止</span>
+    {{#  } else if(d.nodeNo == 1){ }}水质科核实
+    {{#  } else if(d.nodeNo == 2){ }}调度评估
+    {{#  } else if(d.nodeNo == 3){ }}主管批准
+    {{#  } else { }}业务科提单
+    {{#  } }}
+</script>
+
+<script type="text/html" id="stop-bill-reason">
+    {{#  if(d.stopReason == 'DEPLETION'){ }}水源枯竭
+    {{#  } else if(d.stopReason == 'EXCEED'){ }}指标连续超标
+    {{#  } else if(d.stopReason == 'REPAIR'){ }}检修
+    {{#  } }}
+</script>
+
+<!-- 提单层：只有三要素三个输入格，没有落名数、没有关口之类可代填的格子 -->
+<script type="text/html" id="stop-bill-submit-form">
+    <form class="layui-form" style="padding: 20px 10px 0 0" id="stop-bill-submit-layui-form">
+        <div class="layui-form-item">
+            <label class="layui-form-label">水源点代号</label>
+            <div class="layui-input-block">
+                <input type="text" name="siteNo" required lay-verify="required" placeholder="底档代号，如 ZS00" class="layui-input">
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">停水事由</label>
+            <div class="layui-input-block">
+                <select name="stopReason" lay-verify="required">
+                    <option value="">请选择</option>
+                    <option value="DEPLETION">水源枯竭</option>
+                    <option value="EXCEED">指标连续超标</option>
+                    <option value="REPAIR">检修</option>
+                </select>
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">替代供水方案</label>
+            <div class="layui-input-block">
+                <textarea name="altPlan" required lay-verify="required" placeholder="停水后怎么供水，三要素之一" class="layui-textarea"></textarea>
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <div class="layui-input-block">
+                <button class="pear-btn pear-btn-primary" lay-submit lay-filter="stop-bill-submit-ok">提交申请</button>
+            </div>
+        </div>
+    </form>
+</script>
+
+<th:block th:include="include :: footer"/>
+<script>
+    layui.use(['table', 'form', 'jquery', 'layer'], function () {
+        let table = layui.table;
+        let form = layui.form;
+        let $ = layui.jquery;
+        let layer = layui.layer;
+
+        let MODULE_PATH = rootPath + "/zwStopBill/";
+        let cols = [
+            [
+                {title: 'ID', field: 'id', align: 'center', hide: true},
+                {title: '签核单号', field: 'billNo', align: 'center', width: 190},
+                {title: '水源点代号', field: 'siteNo', align: 'center', width: 110},
+                {title: '停水事由', field: 'stopReason', align: 'center', width: 120, templet: '#stop-bill-reason'},
+                {title: '当年序', field: 'yearSeq', align: 'center', width: 80},
+                {title: '走到哪一关', field: 'nodeNo', align: 'center', width: 120, templet: '#stop-bill-node'},
+                {title: '轮次', field: 'roundNo', align: 'center', width: 70},
+                {title: '情形', field: 'status', align: 'center', width: 90, templet: '#stop-bill-status'},
+                {title: '批准时刻', field: 'approvedTime', align: 'center', width: 170},
+                {title: '替代供水方案', field: 'altPlan', align: 'center', minWidth: 200},
+                {title: '操作', toolbar: '#stop-bill-bar', align: 'center', width: 190, fixed: 'right'}
+            ]
+        ];
+
+        table.render({
+            elem: '#stop-bill-table',
+            url: MODULE_PATH + 'list',
+            page: true,
+            method: 'get',
+            cols: cols,
+            skin: 'line',
+            toolbar: '#stop-bill-toolbar',
+            defaultToolbar: ['filter', 'print', 'exports']
+        });
+
+        function ask(promptTitle, fieldBuilder) {
+            layer.prompt({title: promptTitle, formType: 2}, function (text, idx) {
+                $.ajax({
+                    url: MODULE_PATH + fieldBuilder.action,
+                    type: 'post',
+                    data: fieldBuilder.data(text),
+                    success: function (res) {
+                        handleResult(res, idx);
+                    }
+                });
+            });
+        }
+
+        // 服务层结局分四种亮：200 过口；202 压在本关；error 未受理/终止锁死
+        function handleResult(res, idx) {
+            if (res.code === 200) {
+                layer.close(idx);
+                let r = res.data || {};
+                layer.msg(r.message || '已落账', {icon: 1});
+                table.reload('stop-bill-table');
+            } else if (res.code === 202) {
+                // 压住不等于失败：单还在核，提示后可再办
+                layer.msg((res.data && res.data.message) || res.msg || '前置未齐，压在本关', {icon: 0});
+            } else {
+                layer.msg(res.msg || '操作未生效', {icon: 2});
+            }
+        }
+
+        table.on('toolbar(stop-bill-table)', function (obj) {
+            if (obj.event === 'submit') {
+                layer.open({
+                    type: 1,
+                    title: '业务科提单（三要素缺一当场挡回）',
+                    area: ['560px', '430px'],
+                    content: $('#stop-bill-submit-form').html(),
+                    success: function () {
+                        // 弹窗 select 必须重新渲染 layui 样式；页内表单一并重渲染无妨
+                        form.render();
+                    }
+                });
+            }
+        });
+
+        form.on('submit(stop-bill-submit-ok)', function (data) {
+            $.ajax({
+                url: MODULE_PATH + 'submit',
+                type: 'post',
+                data: data.field,
+                success: function (res) {
+                    if (res.code === 200) {
+                        layer.closeAll();
+                        let r = res.data || {};
+                        layer.alert(r.message || '提单已受理', {icon: 1}, function (i) {
+                            layer.close(i);
+                            table.reload('stop-bill-table');
+                        });
+                    } else {
+                        layer.msg(res.msg || '提单被挡回', {icon: 2});
+                    }
+                }
+            });
+            return false;
+        });
+
+        table.on('tool(stop-bill-table)', function (obj) {
+            let d = obj.data;
+            if (obj.event === 'detail') {
+                location.href = MODULE_PATH + 'detail?id=' + d.id;
+            } else if (obj.event === 'withdraw') {
+                ask('撤回意见（撤回即终止锁死）', {
+                    action: 'withdraw',
+                    data: function (text) { return {id: d.id, opinion: text}; }
+                });
+            }
+        });
+
+        form.on('submit(stop-bill-query)', function (data) {
+            table.reload('stop-bill-table', {where: data.field, page: {curr: 1}});
+            return false;
+        });
+    });
+</script>
+</html>

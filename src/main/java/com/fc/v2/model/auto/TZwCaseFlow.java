@@ -36,6 +36,11 @@ public class TZwCaseFlow implements Serializable {
     @ApiModelProperty(value = "处置工单号")
     private String bizNo;
 
+    /** 涉事水源点代号（前置检查按代号点名下属处置单，只认代号不认名字） */
+    @TableField("site_no")
+    @ApiModelProperty(value = "涉事水源点代号")
+    private String siteNo;
+
     /** 当前处置段 0..3（登记/初检/处置/复核封卷） */
     @TableField("stage")
     @ApiModelProperty(value = "当前处置段 0..3（登记/初检/处置/复核封卷）")
@@ -102,6 +107,14 @@ public class TZwCaseFlow implements Serializable {
 
     public void setBizNo(String bizNo) {
         this.bizNo = bizNo;
+    }
+
+    public String getSiteNo() {
+        return siteNo;
+    }
+
+    public void setSiteNo(String siteNo) {
+        this.siteNo = siteNo;
     }
 
     public Integer getStage() {

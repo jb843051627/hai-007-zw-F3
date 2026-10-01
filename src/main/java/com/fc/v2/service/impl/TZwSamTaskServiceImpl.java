@@ -115,11 +115,31 @@ public class TZwSamTaskServiceImpl implements ITZwSamTaskService {
                 .eq("del_flag", 0)
                 .isNotNull("first_due")
                 .gt("period_days", 0));
+        // 底档已退役（停供申请主管批准后回写）的点位：根本不再生成新采样事项条；
+        // 旧事项条/旧采样记录原样留在账上可查，只是不再追加新的（在生成口挡，不等派出才挂起）
+        Set<String> activeSites = loadActiveSiteNos();
         int generated = 0;
         for (TZwSamPlan plan : plans) {
+            if (plan.getSiteNo() == null || !activeSites.contains(plan.getSiteNo())) {
+                continue;
+            }
             generated += generatePlan(plan, at);
         }
         return generated;
+    }
+
+    /** 当前在用（未退役、未删）水源点代号集 */
+    private Set<String> loadActiveSiteNos() {
+        List<TZwSource> sources = this.zwSourceMapper.selectList(new QueryWrapper<TZwSource>()
+                .eq("status", ACTIVE)
+                .eq("del_flag", 0));
+        Set<String> nos = new HashSet<String>();
+        for (TZwSource s : sources) {
+            if (s.getSiteNo() != null) {
+                nos.add(s.getSiteNo());
+            }
+        }
+        return nos;
     }
 
     private int generatePlan(TZwSamPlan plan, Date at) {

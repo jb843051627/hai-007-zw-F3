@@ -36,29 +36,70 @@ public class TZwStopBill implements Serializable {
     @ApiModelProperty(value = "停供/限供申请签核单号")
     private String billNo;
 
-    /** 当前所在道 0..2（业务提/水质核/调度准） */
+    /** 当前所在道 0..3（业务提/水质核/调度评/主管准）；批准落定后停在 3 */
     @TableField("node_no")
-    @ApiModelProperty(value = "当前所在道 0..2（业务提/水质核/调度准）")
+    @ApiModelProperty(value = "当前所在道 0..3（业务提/水质核/调度评/主管准）")
     private Integer nodeNo;
 
-    /** 同口并印办法 0任一人 1两名点齐 */
+    /** 同口并印办法 0任一人 1两名点齐（老签法沿用） */
     @TableField("sign_mode")
     @ApiModelProperty(value = "同口并印办法 0任一人 1两名点齐")
     private Integer signMode;
 
-    /** 本口应落印数 */
+    /** 本口应落印数（老签法沿用） */
     @TableField("need_count")
     @ApiModelProperty(value = "本口应落印数")
     private Integer needCount;
 
-    /** 本口已落印数 */
+    /** 本口已落印数（老签法沿用；新签法此列留空，落名枚数从签核记录一笔笔累出） */
     @TableField("sign_count")
     @ApiModelProperty(value = "本口已落印数")
     private Integer signCount;
 
-    /** 报批情形 0在核 1已核讫 2已打回 */
+    /** 攒签轮次：主管打回一轮 +1，作废轮次只留痕不删除 */
+    @TableField("round_no")
+    @ApiModelProperty(value = "攒签轮次：主管打回一轮+1")
+    private Integer roundNo;
+
+    /** 水源点代号（核实只认代号不认名字） */
+    @TableField("site_no")
+    @ApiModelProperty(value = "水源点代号")
+    private String siteNo;
+
+    /** 停水事由 DEPLETION/EXCEED/REPAIR */
+    @TableField("stop_reason")
+    @ApiModelProperty(value = "停水事由 DEPLETION水源枯竭/EXCEED指标连续超标/REPAIR检修")
+    private String stopReason;
+
+    /** 停水后的替代供水方案 */
+    @TableField("alt_plan")
+    @ApiModelProperty(value = "停水后的替代供水方案")
+    private String altPlan;
+
+    /** 申请年度（同一水源点当年第二份当场单独点名） */
+    @TableField("apply_year")
+    @ApiModelProperty(value = "申请年度")
+    private Integer applyYear;
+
+    /** 同一水源点当年序（01 起顺排，不拦截只点名） */
+    @TableField("year_seq")
+    @ApiModelProperty(value = "同一水源点当年序")
+    private Integer yearSeq;
+
+    /** 停水公告文案（批准时按事由从名录带出，不许人手抄录） */
+    @TableField("notice_text")
+    @ApiModelProperty(value = "停水公告文案（名录带出）")
+    private String noticeText;
+
+    /** 主管批准时刻 */
+    @TableField("approved_time")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
+    @ApiModelProperty(value = "主管批准时刻")
+    private Date approvedTime;
+
+    /** 报批情形 0在核 1已核讫 2已打回(老签法) 3已终止(不同意/撤回) */
     @TableField("status")
-    @ApiModelProperty(value = "报批情形 0在核 1已核讫 2已打回")
+    @ApiModelProperty(value = "报批情形 0在核 1已核讫 2已打回 3已终止")
     private Integer status;
 
     /** 删除标记 0正常 1删除 */
@@ -195,5 +236,69 @@ public class TZwStopBill implements Serializable {
 
     public void setRemark(String remark) {
         this.remark = remark;
+    }
+
+    public Integer getRoundNo() {
+        return roundNo;
+    }
+
+    public void setRoundNo(Integer roundNo) {
+        this.roundNo = roundNo;
+    }
+
+    public String getSiteNo() {
+        return siteNo;
+    }
+
+    public void setSiteNo(String siteNo) {
+        this.siteNo = siteNo;
+    }
+
+    public String getStopReason() {
+        return stopReason;
+    }
+
+    public void setStopReason(String stopReason) {
+        this.stopReason = stopReason;
+    }
+
+    public String getAltPlan() {
+        return altPlan;
+    }
+
+    public void setAltPlan(String altPlan) {
+        this.altPlan = altPlan;
+    }
+
+    public Integer getApplyYear() {
+        return applyYear;
+    }
+
+    public void setApplyYear(Integer applyYear) {
+        this.applyYear = applyYear;
+    }
+
+    public Integer getYearSeq() {
+        return yearSeq;
+    }
+
+    public void setYearSeq(Integer yearSeq) {
+        this.yearSeq = yearSeq;
+    }
+
+    public String getNoticeText() {
+        return noticeText;
+    }
+
+    public void setNoticeText(String noticeText) {
+        this.noticeText = noticeText;
+    }
+
+    public Date getApprovedTime() {
+        return approvedTime;
+    }
+
+    public void setApprovedTime(Date approvedTime) {
+        this.approvedTime = approvedTime;
     }
 }
